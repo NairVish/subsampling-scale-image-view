@@ -188,6 +188,7 @@ public class SubsamplingScaleImageView extends View {
     // Gesture detection settings
     private boolean panEnabled = true;
     private boolean zoomEnabled = true;
+    private boolean rotationEnabled = true;
     private boolean quickScaleEnabled = true;
 
     // Double tap zoom behaviour
@@ -198,6 +199,9 @@ public class SubsamplingScaleImageView extends View {
     // Current scale and scale at start of zoom
     private float scale;
     private float scaleStart;
+
+    // Rotation parameters
+    private float rotation = 0;
 
     // Screen coordinate of top-left corner of source image
     private PointF vTranslate;
@@ -227,6 +231,9 @@ public class SubsamplingScaleImageView extends View {
 
     // Fling detector
     private GestureDetector detector;
+
+    // Rotation detector
+    private RotationGestureDetector rotDetector;
 
     // Tile and image decoding
     private ImageRegionDecoder decoder;
@@ -570,6 +577,26 @@ public class SubsamplingScaleImageView extends View {
                 return super.onDoubleTapEvent(e);
             }
         });
+
+        this.rotDetector = new RotationGestureDetector(new RotationGestureDetector.OnRotationListener() {
+            @Override
+            public boolean onRotationBegin() {
+                return true;
+            }
+
+            @Override
+            public void onRotationEnd() {
+
+            }
+
+            @Override
+            public boolean onRotation(float angle) {
+                rotation += angle;
+                invalidate();
+                return true;
+            }
+        });
+
     }
 
     /**
@@ -640,7 +667,8 @@ public class SubsamplingScaleImageView extends View {
             return true;
         }
         // Detect flings, taps and double taps
-        if (!isQuickScaling && (detector == null || detector.onTouchEvent(event))) {
+        if (!isQuickScaling && (rotDetector == null || rotDetector.onTouchEvent(event))
+                && (detector == null || detector.onTouchEvent(event))) {
             isZooming = false;
             isPanning = false;
             maxTouchCount = 0;
@@ -733,6 +761,7 @@ public class SubsamplingScaleImageView extends View {
                                     vDistStart = vDistEnd;
                                 }
                             } else if (sRequestedCenter != null) {
+                                // TODO: Rotation
                                 // With a center specified from code, zoom around that point.
                                 vTranslate.x = (getWidth()/2) - (scale * sRequestedCenter.x);
                                 vTranslate.y = (getHeight()/2) - (scale * sRequestedCenter.y);
@@ -803,25 +832,33 @@ public class SubsamplingScaleImageView extends View {
                     } else if (!isZooming) {
                         // One finger pan - translate the image. We do this calculation even with pan disabled so click
                         // and long click behaviour is preserved.
-                        float dx = Math.abs(event.getX() - vCenterStart.x);
-                        float dy = Math.abs(event.getY() - vCenterStart.y);
+
+                        float dx = (event.getX() - vCenterStart.x);
+                        float dy = (event.getY() - vCenterStart.y);
+                        float dxA = Math.abs(dx);
+                        float dyA = Math.abs(dy);
 
                         //On the Samsung S6 long click event does not work, because the dx > 5 usually true
                         float offset = density * 5;
-                        if (dx > offset || dy > offset || isPanning) {
+                        if (dxA > offset || dyA > offset || isPanning) {
                             consumed = true;
-                            vTranslate.x = vTranslateStart.x + (event.getX() - vCenterStart.x);
-                            vTranslate.y = vTranslateStart.y + (event.getY() - vCenterStart.y);
+                            double cos = Math.cos(-rotation);
+                            double sin = Math.sin(-rotation);
+                            float dxR = (float) (dx * cos - dy * sin);
+                            float dyR = (float) (dx * sin + dy * cos);
+
+                            vTranslate.x = vTranslateStart.x + dxR;
+                            vTranslate.y = vTranslateStart.y + dyR;
 
                             float lastX = vTranslate.x;
                             float lastY = vTranslate.y;
                             fitToBounds(true);
                             boolean atXEdge = lastX != vTranslate.x;
-                            boolean edgeXSwipe = atXEdge && dx > dy && !isPanning;
-                            boolean yPan = lastY == vTranslate.y && dy > offset * 3;
+                            boolean edgeXSwipe = atXEdge && dxA > dyA && !isPanning;
+                            boolean yPan = lastY == vTranslate.y && dyA > offset * 3;
                             if (!edgeXSwipe && (!atXEdge || yPan || isPanning)) {
                                 isPanning = true;
-                            } else if (dx > offset) {
+                            } else if (dxA > offset) {
                                 // Haven't panned the image, and we're at the left or right edge. Switch to page swipe.
                                 maxTouchCount = 0;
                                 handler.removeMessages(MESSAGE_LONG_CLICK);
@@ -1028,6 +1065,7 @@ public class SubsamplingScaleImageView extends View {
                                 setMatrixArray(dstArray, tile.vRect.left, tile.vRect.bottom, tile.vRect.left, tile.vRect.top, tile.vRect.right, tile.vRect.top, tile.vRect.right, tile.vRect.bottom);
                             }
                             matrix.setPolyToPoly(srcArray, 0, dstArray, 0, 4);
+                            matrix.postRotate((float) Math.toDegrees(rotation), getWidth() / 2, getHeight() / 2);
                             canvas.drawBitmap(tile.bitmap, matrix, bitmapPaint);
                             if (debug) {
                                 canvas.drawRect(tile.vRect, debugPaint);
@@ -1063,6 +1101,8 @@ public class SubsamplingScaleImageView extends View {
             } else if (getRequiredRotation() == ORIENTATION_270) {
                 matrix.postTranslate(0, scale * sWidth);
             }
+
+            matrix.postRotate((float) Math.toDegrees(rotation), getWidth() / 2, getHeight() / 2);
 
             if (tileBgPaint != null) {
                 if (sRect == null) { sRect = new RectF(); }
@@ -1248,7 +1288,7 @@ public class SubsamplingScaleImageView extends View {
         if (decoder == null || tileMap == null) { return; }
 
         int sampleSize = Math.min(fullImageSampleSize, calculateInSampleSize(scale));
-
+        // TODO: Account for rotation
         // Load tiles of the correct sample size that are on screen. Discard tiles off screen, and those that are higher
         // resolution than required, or lower res than required but not the base layer, so the base layer is always present.
         for (Map.Entry<Integer, List<Tile>> tileMapEntry : tileMap.entrySet()) {
@@ -1286,6 +1326,7 @@ public class SubsamplingScaleImageView extends View {
      * Determine whether tile is visible.
      */
     private boolean tileVisible(Tile tile) {
+        // TODO: Use rotation to properly evaluate tile visibility
         float sVisLeft = viewToSourceX(0),
             sVisRight = viewToSourceX(getWidth()),
             sVisTop = viewToSourceY(0),
@@ -1307,6 +1348,7 @@ public class SubsamplingScaleImageView extends View {
             if (vTranslate == null) {
                 vTranslate = new PointF();
             }
+            // TODO: Rotation
             vTranslate.x = (getWidth()/2) - (scale * sPendingCenter.x);
             vTranslate.y = (getHeight()/2) - (scale * sPendingCenter.y);
             sPendingCenter = null;
@@ -1370,7 +1412,7 @@ public class SubsamplingScaleImageView extends View {
         if (panLimit == PAN_LIMIT_OUTSIDE && isReady()) {
             center = false;
         }
-
+        // TODO: Rotation
         PointF vTranslate = sat.vTranslate;
         float scale = limitedScale(sat.scale);
         float scaleWidth = scale * sWidth();
@@ -1852,7 +1894,7 @@ public class SubsamplingScaleImageView extends View {
     }
 
     private static class Anim {
-
+        // TODO: Enable rotation animation
         private float scaleStart; // Scale at start of anim
         private float scaleEnd; // Scale at end of anim (target)
         private PointF sCenterStart; // Source center point at start
@@ -2009,6 +2051,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert screen to source x coordinate.
      */
     private float viewToSourceX(float vx) {
+        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (vx - vTranslate.x)/scale;
     }
@@ -2017,6 +2060,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert screen to source y coordinate.
      */
     private float viewToSourceY(float vy) {
+        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (vy - vTranslate.y)/scale;
     }
@@ -2046,6 +2090,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert screen coordinate to source coordinate.
      */
     public final PointF viewToSourceCoord(float vx, float vy, PointF sTarget) {
+        // TODO: Rotation
         if (vTranslate == null) {
             return null;
         }
@@ -2057,6 +2102,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert source to screen x coordinate.
      */
     private float sourceToViewX(float sx) {
+        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (sx * scale) + vTranslate.x;
     }
@@ -2065,6 +2111,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert source to screen y coordinate.
      */
     private float sourceToViewY(float sy) {
+        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (sy * scale) + vTranslate.y;
     }
@@ -2094,6 +2141,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert source coordinate to screen coordinate.
      */
     public final PointF sourceToViewCoord(float sx, float sy, PointF vTarget) {
+        // TODO: Rotation
         if (vTranslate == null) {
             return null;
         }
@@ -2105,6 +2153,7 @@ public class SubsamplingScaleImageView extends View {
      * Convert source rect to screen rect, integer values.
      */
     private Rect sourceToViewRect(Rect sRect, Rect vTarget) {
+        // TODO: Rotation
         vTarget.set(
             (int)sourceToViewX(sRect.left),
             (int)sourceToViewY(sRect.top),
@@ -2412,6 +2461,16 @@ public class SubsamplingScaleImageView extends View {
         invalidate();
     }
 
+    public final float getRotation() {
+        return rotation;
+    }
+
+    public final void setRotation(float rot) {
+        this.rotation = rot;
+        invalidate();
+    }
+
+
     /**
      * Fully zoom out and return the image to the middle of the screen. This might be useful if you have a view pager
      * and want images to be reset when the user has moved to another page.
@@ -2516,6 +2575,20 @@ public class SubsamplingScaleImageView extends View {
      */
     public final void setZoomEnabled(boolean zoomEnabled) {
         this.zoomEnabled = zoomEnabled;
+    }
+
+    /**
+     * Returns true if rotation gesture detection is enabled
+     */
+    public final boolean isRotationEnabled() {
+        return rotationEnabled;
+    }
+
+    /**
+     * Enable or disable rotation gesture detection. Disabling locks the current rotation.
+     */
+    public final void setRotationEnabled(boolean rotationEnabled) {
+        this.rotationEnabled = rotationEnabled;
     }
 
     /**
