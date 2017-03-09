@@ -202,6 +202,9 @@ public class SubsamplingScaleImageView extends View {
 
     // Rotation parameters
     private float rotation = 0;
+    // Stored to avoid unnecessary calculation
+    private double cos = Math.cos(0);
+    private double sin = Math.sin(0);
 
     // Screen coordinate of top-left corner of source image
     private PointF vTranslate;
@@ -591,7 +594,7 @@ public class SubsamplingScaleImageView extends View {
 
             @Override
             public boolean onRotation(float angle) {
-                rotation += angle;
+                setRotation(rotation + angle);
                 invalidate();
                 return true;
             }
@@ -842,10 +845,9 @@ public class SubsamplingScaleImageView extends View {
                         float offset = density * 5;
                         if (dxA > offset || dyA > offset || isPanning) {
                             consumed = true;
-                            double cos = Math.cos(-rotation);
-                            double sin = Math.sin(-rotation);
-                            float dxR = (float) (dx * cos - dy * sin);
-                            float dyR = (float) (dx * sin + dy * cos);
+                            // Using negative angle cos and sin
+                            float dxR = (float) (dx * cos - dy * -sin);
+                            float dyR = (float) (dx * -sin + dy * cos);
 
                             vTranslate.x = vTranslateStart.x + dxR;
                             vTranslate.y = vTranslateStart.y + dyR;
@@ -1006,8 +1008,9 @@ public class SubsamplingScaleImageView extends View {
             float vFocusNowX = ease(anim.easing, scaleElapsed, anim.vFocusStart.x, anim.vFocusEnd.x - anim.vFocusStart.x, anim.duration);
             float vFocusNowY = ease(anim.easing, scaleElapsed, anim.vFocusStart.y, anim.vFocusEnd.y - anim.vFocusStart.y, anim.duration);
             // Find out where the focal point is at this scale and adjust its position to follow the animation path
-            vTranslate.x -= sourceToViewX(anim.sCenterEnd.x) - vFocusNowX;
-            vTranslate.y -= sourceToViewY(anim.sCenterEnd.y) - vFocusNowY;
+            PointF animVCenterEnd = sourceToViewCoord(anim.sCenterEnd);
+            vTranslate.x -= animVCenterEnd.x - vFocusNowX;
+            vTranslate.y -= animVCenterEnd.y - vFocusNowY;
 
             // For translate anims, showing the image non-centered is never allowed, for scaling anims it is during the animation.
             fitToBounds(finished || (anim.scaleStart == anim.scaleEnd));
@@ -1138,7 +1141,8 @@ public class SubsamplingScaleImageView extends View {
             }
             if (quickScaleSCenter != null) {
                 debugPaint.setColor(Color.BLUE);
-                canvas.drawCircle(sourceToViewX(quickScaleSCenter.x), sourceToViewY(quickScaleSCenter.y), 35, debugPaint);
+                final PointF quickScaleVCenter = sourceToViewCoord(quickScaleSCenter);
+                canvas.drawCircle(quickScaleVCenter.x, quickScaleVCenter.y, 35, debugPaint);
             }
             if (quickScaleVStart != null) {
                 debugPaint.setColor(Color.CYAN);
@@ -1288,7 +1292,6 @@ public class SubsamplingScaleImageView extends View {
         if (decoder == null || tileMap == null) { return; }
 
         int sampleSize = Math.min(fullImageSampleSize, calculateInSampleSize(scale));
-        // TODO: Account for rotation
         // Load tiles of the correct sample size that are on screen. Discard tiles off screen, and those that are higher
         // resolution than required, or lower res than required but not the base layer, so the base layer is always present.
         for (Map.Entry<Integer, List<Tile>> tileMapEntry : tileMap.entrySet()) {
@@ -2049,18 +2052,18 @@ public class SubsamplingScaleImageView extends View {
 
     /**
      * Convert screen to source x coordinate.
+     * NOTE: This operation corresponds to source coordinates before rotation is applied
      */
     private float viewToSourceX(float vx) {
-        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (vx - vTranslate.x)/scale;
     }
 
     /**
      * Convert screen to source y coordinate.
+     * NOTE: This operation corresponds to source coordinates before rotation is applied
      */
     private float viewToSourceY(float vy) {
-        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (vy - vTranslate.y)/scale;
     }
@@ -2090,28 +2093,42 @@ public class SubsamplingScaleImageView extends View {
      * Convert screen coordinate to source coordinate.
      */
     public final PointF viewToSourceCoord(float vx, float vy, PointF sTarget) {
-        // TODO: Rotation
         if (vTranslate == null) {
             return null;
         }
-        sTarget.set(viewToSourceX(vx), viewToSourceY(vy));
+
+        float xPreRotate = viewToSourceX(vx);
+        float yPreRotate = viewToSourceY(vy);
+
+        if (rotation == 0f) {
+            sTarget.set(xPreRotate, yPreRotate);
+        } else {
+            // Calculate offset by rotation
+            final float sourceVCenterX = viewToSourceX(getWidth() / 2);
+            final float sourceVCenterY = viewToSourceY(getHeight() / 2);
+            xPreRotate -= sourceVCenterX;
+            yPreRotate -= sourceVCenterY;
+            sTarget.x = (float) (xPreRotate * cos - yPreRotate * sin) + sourceVCenterX;
+            sTarget.y = (float) (xPreRotate * sin + yPreRotate * cos) + sourceVCenterY;
+        }
+
         return sTarget;
     }
 
     /**
      * Convert source to screen x coordinate.
+     * NOTE: This operation corresponds to source coordinates before rotation is applied
      */
     private float sourceToViewX(float sx) {
-        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (sx * scale) + vTranslate.x;
     }
 
     /**
      * Convert source to screen y coordinate.
+     * NOTE: This operation corresponds to source coordinates before rotation is applied
      */
     private float sourceToViewY(float sy) {
-        // TODO: Rotation
         if (vTranslate == null) { return Float.NaN; }
         return (sy * scale) + vTranslate.y;
     }
@@ -2145,7 +2162,22 @@ public class SubsamplingScaleImageView extends View {
         if (vTranslate == null) {
             return null;
         }
-        vTarget.set(sourceToViewX(sx), sourceToViewY(sy));
+
+        float xPreRotate = sourceToViewX(sx);
+        float yPreRotate = sourceToViewY(sy);
+
+        if (rotation == 0f) {
+            vTarget.set(xPreRotate, yPreRotate);
+        } else {
+            // Calculate offset by rotation
+            final float vCenterX = getWidth() / 2;
+            final float vCenterY = getHeight() / 2;
+            xPreRotate -= vCenterX;
+            yPreRotate -= vCenterY;
+            vTarget.x = (float) (xPreRotate * cos - yPreRotate * sin) + vCenterX;
+            vTarget.y = (float) (xPreRotate * sin + yPreRotate * cos) + vCenterY;
+        }
+
         return vTarget;
     }
 
@@ -2153,7 +2185,8 @@ public class SubsamplingScaleImageView extends View {
      * Convert source rect to screen rect, integer values.
      */
     private Rect sourceToViewRect(Rect sRect, Rect vTarget) {
-        // TODO: Rotation
+        // NOTE: Arbitrary rotation makes this impossible to implement literally, due to how Rect
+        // is represented, but as this is used before rotation is applied, it doesn't matter
         vTarget.set(
             (int)sourceToViewX(sRect.left),
             (int)sourceToViewY(sRect.top),
@@ -2174,6 +2207,7 @@ public class SubsamplingScaleImageView extends View {
         if (satTemp == null) {
             satTemp = new ScaleAndTranslate(0, new PointF(0, 0));
         }
+        // TODO: Rotation
         satTemp.scale = scale;
         satTemp.vTranslate.set(vxCenter - (sCenterX * scale), vyCenter - (sCenterY * scale));
         fitToBounds(true, satTemp);
@@ -2461,13 +2495,29 @@ public class SubsamplingScaleImageView extends View {
         invalidate();
     }
 
+    /**
+     * Returns the current rotation value.
+     */
     public final float getRotation() {
         return rotation;
     }
 
+    /**
+     * Externally change the rotation around the view center
+     * @param rot
+     */
     public final void setRotation(float rot) {
-        this.rotation = rot;
+        setRotationInternal(rot);
         invalidate();
+    }
+
+    /**
+     * Sets rotation without invalidation
+     */
+    private void setRotationInternal(float rot) {
+        this.rotation = rot;
+        this.cos = Math.cos(rot);
+        this.sin = Math.sin(rot);
     }
 
 
