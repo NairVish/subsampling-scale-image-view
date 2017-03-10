@@ -594,7 +594,7 @@ public class SubsamplingScaleImageView extends View {
 
             @Override
             public boolean onRotation(float angle) {
-                setRotation(rotation + angle);
+                setRotationRad(rotation + angle);
                 invalidate();
                 return true;
             }
@@ -1329,12 +1329,37 @@ public class SubsamplingScaleImageView extends View {
      * Determine whether tile is visible.
      */
     private boolean tileVisible(Tile tile) {
-        // TODO: Use rotation to properly evaluate tile visibility
-        float sVisLeft = viewToSourceX(0),
-            sVisRight = viewToSourceX(getWidth()),
-            sVisTop = viewToSourceY(0),
-            sVisBottom = viewToSourceY(getHeight());
-        return !(sVisLeft > tile.sRect.right || tile.sRect.left > sVisRight || sVisTop > tile.sRect.bottom || tile.sRect.top > sVisBottom);
+        if (this.rotation == 0f) {
+            float sVisLeft = viewToSourceX(0),
+                    sVisRight = viewToSourceX(getWidth()),
+                    sVisTop = viewToSourceY(0),
+                    sVisBottom = viewToSourceY(getHeight());
+            return !(sVisLeft > tile.sRect.right || tile.sRect.left > sVisRight || sVisTop > tile.sRect.bottom || tile.sRect.top > sVisBottom);
+        }
+
+        PointF[] corners = new PointF[]{
+                sourceToViewCoord(tile.sRect.left, tile.sRect.top),
+                sourceToViewCoord(tile.sRect.right, tile.sRect.top),
+                sourceToViewCoord(tile.sRect.right, tile.sRect.bottom),
+                sourceToViewCoord(tile.sRect.left, tile.sRect.bottom),
+        };
+
+        final double rotation = this.rotation % (Math.PI * 2);
+
+        if (rotation < Math.PI / 2) {
+            return !(corners[0].y > getHeight() || corners[1].x < 0
+                    || corners[2].y < 0 || corners[3].x > getWidth());
+        } else if (rotation < Math.PI) {
+            return !(corners[3].y > getHeight() || corners[0].x < 0
+                    || corners[1].y < 0 || corners[2].x > getWidth());
+        } else if (rotation < Math.PI * 3/2) {
+            return !(corners[2].y > getHeight() || corners[3].x < 0
+                    || corners[0].y < 0 || corners[1].x > getWidth());
+        } else {
+            return !(corners[1].y > getHeight() || corners[2].x < 0
+                    || corners[3].y < 0 || corners[0].x > getWidth());
+        }
+
     }
 
     /**
@@ -2158,7 +2183,6 @@ public class SubsamplingScaleImageView extends View {
      * Convert source coordinate to screen coordinate.
      */
     public final PointF sourceToViewCoord(float sx, float sy, PointF vTarget) {
-        // TODO: Rotation
         if (vTranslate == null) {
             return null;
         }
@@ -2504,9 +2528,18 @@ public class SubsamplingScaleImageView extends View {
 
     /**
      * Externally change the rotation around the view center
-     * @param rot
+     * @param rot Rotation around view center in degrees
      */
-    public final void setRotation(float rot) {
+    public final void setRotationDeg(float rot) {
+        setRotationInternal((float) Math.toRadians(rot));
+        invalidate();
+    }
+
+    /**
+     * Externally change the rotation around the view center
+     * @param rot Rotation around view center in radians
+     */
+    public final void setRotationRad(float rot) {
         setRotationInternal(rot);
         invalidate();
     }
@@ -2516,6 +2549,13 @@ public class SubsamplingScaleImageView extends View {
      */
     private void setRotationInternal(float rot) {
         this.rotation = rot;
+        // Normalize rotation between 0..2pi
+        while (this.rotation < 0) {
+            this.rotation += Math.PI * 2;
+        }
+        while (this.rotation > Math.PI * 2) {
+            this.rotation -= Math.PI * 2;
+        }
         this.cos = Math.cos(rot);
         this.sin = Math.sin(rot);
     }
@@ -2946,7 +2986,7 @@ public class SubsamplingScaleImageView extends View {
                     Log.w(TAG, "Error thrown by animation listener", e);
                 }
             }
-
+            // TODO: Rotation
             int vxCenter = getPaddingLeft() + (getWidth() - getPaddingRight() - getPaddingLeft())/2;
             int vyCenter = getPaddingTop() + (getHeight() - getPaddingBottom() - getPaddingTop())/2;
             float targetScale = limitedScale(this.targetScale);
