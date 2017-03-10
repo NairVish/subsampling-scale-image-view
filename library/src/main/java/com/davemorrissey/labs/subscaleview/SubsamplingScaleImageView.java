@@ -2135,19 +2135,19 @@ public class SubsamplingScaleImageView extends View {
             return null;
         }
 
-        float xPreRotate = viewToSourceX(vx);
-        float yPreRotate = viewToSourceY(vy);
+        float sXPreRotate = viewToSourceX(vx);
+        float sYPreRotate = viewToSourceY(vy);
 
         if (rotation == 0f) {
-            sTarget.set(xPreRotate, yPreRotate);
+            sTarget.set(sXPreRotate, sYPreRotate);
         } else {
             // Calculate offset by rotation
             final float sourceVCenterX = viewToSourceX(getWidth() / 2);
             final float sourceVCenterY = viewToSourceY(getHeight() / 2);
-            xPreRotate -= sourceVCenterX;
-            yPreRotate -= sourceVCenterY;
-            sTarget.x = (float) (xPreRotate * cos - yPreRotate * sin) + sourceVCenterX;
-            sTarget.y = (float) (xPreRotate * sin + yPreRotate * cos) + sourceVCenterY;
+            sXPreRotate -= sourceVCenterX;
+            sYPreRotate -= sourceVCenterY;
+            sTarget.x = (float) (sXPreRotate * cos + sYPreRotate * sin) + sourceVCenterX;
+            sTarget.y = (float) (-sXPreRotate * sin + sYPreRotate * cos) + sourceVCenterY;
         }
 
         return sTarget;
