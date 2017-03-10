@@ -2548,14 +2548,10 @@ public class SubsamplingScaleImageView extends View {
      * Sets rotation without invalidation
      */
     private void setRotationInternal(float rot) {
-        this.rotation = rot;
         // Normalize rotation between 0..2pi
-        while (this.rotation < 0) {
-            this.rotation += Math.PI * 2;
-        }
-        while (this.rotation > Math.PI * 2) {
-            this.rotation -= Math.PI * 2;
-        }
+        this.rotation = rot % (float) (Math.PI * 2);
+        if (this.rotation < 0) this.rotation += Math.PI * 2;
+
         this.cos = Math.cos(rot);
         this.sin = Math.sin(rot);
     }
