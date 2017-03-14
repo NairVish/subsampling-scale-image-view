@@ -994,6 +994,7 @@ public class SubsamplingScaleImageView extends View {
 
         // If animating scale, calculate current scale and center with easing equations
         if (anim != null) {
+            // TODO: Rotation
             // Store current values so we can send an event if they change
             float scaleBefore = scale;
             if (vTranslateBefore == null) { vTranslateBefore = new PointF(0, 0); }
@@ -1922,9 +1923,11 @@ public class SubsamplingScaleImageView extends View {
     }
 
     private static class Anim {
-        // TODO: Enable rotation animation
+
         private float scaleStart; // Scale at start of anim
         private float scaleEnd; // Scale at end of anim (target)
+        private float rotationStart; // Rotation at start of anim
+        private float rotationEnd; // Rotation at end o anim
         private PointF sCenterStart; // Source center point at start
         private PointF sCenterEnd; // Source center point at end, adjusted for pan limits
         private PointF sCenterEndRequested; // Source center point that was requested, without adjustment
@@ -1946,6 +1949,17 @@ public class SubsamplingScaleImageView extends View {
         }
         private float scale;
         private PointF vTranslate;
+    }
+
+    private static class ScaleTranslateRotate {
+        private ScaleTranslateRotate(float scale, PointF vTranslate, float rotate) {
+            this.scale = scale;
+            this.vTranslate = vTranslate;
+            this.rotate = rotate;
+        }
+        private float scale;
+        private PointF vTranslate;
+        private float rotate;
     }
 
     /**
