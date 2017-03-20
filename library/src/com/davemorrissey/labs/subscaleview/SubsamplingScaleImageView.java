@@ -994,7 +994,6 @@ public class SubsamplingScaleImageView extends View {
 
         // If animating scale, calculate current scale and center with easing equations
         if (anim != null) {
-            // TODO: Rotation
             // Store current values so we can send an event if they change
             float scaleBefore = scale;
             if (vTranslateBefore == null) { vTranslateBefore = new PointF(0, 0); }
@@ -1010,8 +1009,10 @@ public class SubsamplingScaleImageView extends View {
             float vFocusNowY = ease(anim.easing, scaleElapsed, anim.vFocusStart.y, anim.vFocusEnd.y - anim.vFocusStart.y, anim.duration);
             // Find out where the focal point is at this scale and adjust its position to follow the animation path
             PointF animVCenterEnd = sourceToViewCoord(anim.sCenterEnd);
-            vTranslate.x -= animVCenterEnd.x - vFocusNowX;
-            vTranslate.y -= animVCenterEnd.y - vFocusNowY;
+            final float dX = animVCenterEnd.x - vFocusNowX;
+            final float dY = animVCenterEnd.y - vFocusNowY;
+            vTranslate.x -= (dX * cos + dY * sin);
+            vTranslate.y -= (-dX * sin + dY * cos);
 
             // For translate anims, showing the image non-centered is never allowed, for scaling anims it is during the animation.
             fitToBounds(finished || (anim.scaleStart == anim.scaleEnd));
