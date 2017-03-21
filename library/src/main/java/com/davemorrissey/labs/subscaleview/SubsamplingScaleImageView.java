@@ -536,7 +536,11 @@ public class SubsamplingScaleImageView extends View {
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                 if (panEnabled && readySent && vTranslate != null && e1 != null && e2 != null && (Math.abs(e1.getX() - e2.getX()) > 50 || Math.abs(e1.getY() - e2.getY()) > 50) && (Math.abs(velocityX) > 500 || Math.abs(velocityY) > 500) && !isZooming) {
-                    PointF vTranslateEnd = new PointF(vTranslate.x + (velocityX * 0.25f), vTranslate.y + (velocityY * 0.25f));
+                    // Account for rotation
+                    final float vX = (float) (velocityX * cos - velocityY * -sin);
+                    final float vY = (float) (velocityX * -sin + velocityY * cos);
+
+                    PointF vTranslateEnd = new PointF(vTranslate.x + (vX * 0.25f), vTranslate.y + (vY * 0.25f));
                     float sCenterXEnd = ((getWidth()/2) - vTranslateEnd.x)/scale;
                     float sCenterYEnd = ((getHeight()/2) - vTranslateEnd.y)/scale;
                     new AnimationBuilder(new PointF(sCenterXEnd, sCenterYEnd)).withEasing(EASE_OUT_QUAD).withPanLimited(false).withOrigin(ORIGIN_FLING).start();
@@ -682,8 +686,10 @@ public class SubsamplingScaleImageView extends View {
             return true;
         }
         // Detect flings, taps and double taps
-        if (!isQuickScaling && (rotDetector == null || rotDetector.onTouchEvent(event))
-                && (detector == null || detector.onTouchEvent(event))) {
+        final boolean rotEvent = rotDetector != null && rotDetector.onTouchEvent(event);
+        final boolean flingEvent = detector != null && detector.onTouchEvent(event);
+
+        if (!isQuickScaling && (rotEvent) && (flingEvent)) {
             isZooming = false;
             isPanning = false;
             maxTouchCount = 0;
@@ -776,7 +782,6 @@ public class SubsamplingScaleImageView extends View {
                                     vDistStart = vDistEnd;
                                 }
                             } else if (sRequestedCenter != null) {
-                                // TODO: Rotation
                                 // With a center specified from code, zoom around that point.
                                 vTranslate.x = (getWidth()/2) - (scale * sRequestedCenter.x);
                                 vTranslate.y = (getHeight()/2) - (scale * sRequestedCenter.y);
