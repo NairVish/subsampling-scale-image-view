@@ -235,9 +235,6 @@ public class SubsamplingScaleImageView extends View {
     // Fling detector
     private GestureDetector detector;
 
-    // Rotation detector
-    private RotationGestureDetector rotDetector;
-
     // Tile and image decoding
     private ImageRegionDecoder decoder;
     private final Object decoderLock = new Object();
@@ -246,7 +243,10 @@ public class SubsamplingScaleImageView extends View {
 
     // Debug values
     private PointF vCenterStart;
+    private PointF sCenterStart;
+    private PointF vCenterStartNow;
     private float vDistStart;
+    private float lastAngle;
 
     // Current quickscale state
     private final float quickScaleThreshold;
@@ -584,26 +584,6 @@ public class SubsamplingScaleImageView extends View {
                 return super.onDoubleTapEvent(e);
             }
         });
-
-        this.rotDetector = new RotationGestureDetector(new RotationGestureDetector.OnRotationListener() {
-            @Override
-            public boolean onRotationBegin() {
-                return true;
-            }
-
-            @Override
-            public void onRotationEnd() {
-
-            }
-
-            @Override
-            public boolean onRotation(float angle) {
-                setRotationRad(rotation + angle);
-                invalidate();
-                return true;
-            }
-        });
-
     }
 
     /**
@@ -674,10 +654,10 @@ public class SubsamplingScaleImageView extends View {
             return true;
         }
         // Detect flings, taps and double taps
-        final boolean rotEvent = rotDetector != null && rotDetector.onTouchEvent(event);
+        //final boolean rotEvent = rotDetector != null && rotDetector.onTouchEvent(event);
         final boolean flingEvent = detector != null && detector.onTouchEvent(event);
 
-        if (!isQuickScaling && (rotEvent) && (flingEvent)) {
+        if (!isQuickScaling && flingEvent) {
             isZooming = false;
             isPanning = false;
             maxTouchCount = 0;
@@ -687,6 +667,8 @@ public class SubsamplingScaleImageView extends View {
         if (vTranslateStart == null) { vTranslateStart = new PointF(0, 0); }
         if (vTranslateBefore == null) { vTranslateBefore = new PointF(0, 0); }
         if (vCenterStart == null) { vCenterStart = new PointF(0, 0); }
+        if (sCenterStart == null) { sCenterStart = new PointF(0, 0); }
+        if (vCenterStartNow == null) { vCenterStartNow = new PointF(0, 0); }
 
         // Store current values so we can send an event if they change
         float scaleBefore = scale;
@@ -715,10 +697,16 @@ public class SubsamplingScaleImageView extends View {
                         vDistStart = distance;
                         vTranslateStart.set(vTranslate.x, vTranslate.y);
                         vCenterStart.set((event.getX(0) + event.getX(1))/2, (event.getY(0) + event.getY(1))/2);
+                        viewToSourceCoord(vCenterStart, sCenterStart);
                     } else {
                         // Abort all gestures on second touch
                         maxTouchCount = 0;
                     }
+
+                    if (rotationEnabled) {
+                        lastAngle = (float) Math.atan2((event.getY(0) - event.getY(1)), (event.getX(0) - event.getX(1)));
+                    }
+
                     // Cancel long click timer
                     handler.removeMessages(MESSAGE_LONG_CLICK);
                 } else if (!isQuickScaling) {
@@ -739,6 +727,13 @@ public class SubsamplingScaleImageView extends View {
                         float vCenterEndX = (event.getX(0) + event.getX(1))/2;
                         float vCenterEndY = (event.getY(0) + event.getY(1))/2;
 
+                        if (rotationEnabled) {
+                            float angle = (float) Math.atan2((event.getY(0) - event.getY(1)), (event.getX(0) - event.getX(1)));
+                            setRotationInternal(rotation + angle - lastAngle);
+                            lastAngle = angle;
+                            consumed = true;
+                        }
+
                         if (zoomEnabled && (distance(vCenterStart.x, vCenterEndX, vCenterStart.y, vCenterEndY) > 5 || Math.abs(vDistEnd - vDistStart) > 5 || isPanning)) {
                             isZooming = true;
                             isPanning = true;
@@ -756,12 +751,17 @@ public class SubsamplingScaleImageView extends View {
                             } else if (panEnabled) {
                                 // Translate to place the source image coordinate that was at the center of the pinch at the start
                                 // at the center of the pinch now, to give simultaneous pan + zoom.
-                                float vLeftStart = vCenterStart.x - vTranslateStart.x;
-                                float vTopStart = vCenterStart.y - vTranslateStart.y;
-                                float vLeftNow = vLeftStart * (scale/scaleStart);
-                                float vTopNow = vTopStart * (scale/scaleStart);
-                                vTranslate.x = vCenterEndX - vLeftNow;
-                                vTranslate.y = vCenterEndY - vTopNow;
+                                sourceToViewCoord(sCenterStart, vCenterStartNow);
+
+                                final float dx = (vCenterEndX - vCenterStartNow.x);
+                                final float dy = (vCenterEndY - vCenterStartNow.y);
+
+                                float dxR = (float) (dx * cos - dy * -sin);
+                                float dyR = (float) (dx * -sin + dy * cos);
+
+                                vTranslate.x += dxR;
+                                vTranslate.y += dyR;
+
                                 if ((previousScale * sHeight() < getHeight() && scale * sHeight() >= getHeight()) || (previousScale * sWidth() < getWidth() && scale * sWidth() >= getWidth())) {
                                     fitToBounds(true);
                                     vCenterStart.set(vCenterEndX, vCenterEndY);
