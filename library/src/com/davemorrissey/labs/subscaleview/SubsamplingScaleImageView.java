@@ -698,7 +698,7 @@ public class SubsamplingScaleImageView extends View {
                         vTranslateStart.set(vTranslate.x, vTranslate.y);
                         vCenterStart.set((event.getX(0) + event.getX(1))/2, (event.getY(0) + event.getY(1))/2);
                         viewToSourceCoord(vCenterStart, sCenterStart);
-                    } else {
+                    } else if (!rotationEnabled) {
                         // Abort all gestures on second touch
                         maxTouchCount = 0;
                     }
@@ -1352,6 +1352,11 @@ public class SubsamplingScaleImageView extends View {
                 sourceToViewCoord(tile.sRect.left, tile.sRect.bottom),
         };
 
+        for (PointF pointF: corners) {
+            if (pointF == null) {
+                return false;
+            }
+        }
         final double rotation = this.rotation % (Math.PI * 2);
 
         if (rotation < Math.PI / 2) {
@@ -2541,9 +2546,16 @@ public class SubsamplingScaleImageView extends View {
     }
 
     /**
-     * Returns the current rotation value.
+     * Returns the current rotation value in degrees
      */
-    public final float getRotation() {
+    public final float getRotationDeg() {
+        return (float) Math.toDegrees(rotation);
+    }
+
+    /**
+     * Returns the current rotation value in radians.
+     */
+    public final float getRotationRad() {
         return rotation;
     }
 
