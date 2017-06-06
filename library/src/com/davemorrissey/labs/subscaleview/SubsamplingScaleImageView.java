@@ -690,15 +690,15 @@ public class SubsamplingScaleImageView extends View {
                 requestDisallowInterceptTouchEvent(true);
                 maxTouchCount = Math.max(maxTouchCount, touchCount);
                 if (touchCount >= 2) {
-                    if (zoomEnabled) {
-                        // Start pinch to zoom. Calculate distance between touch points and center point of the pinch.
-                        float distance = distance(event.getX(0), event.getX(1), event.getY(0), event.getY(1));
-                        scaleStart = scale;
-                        vDistStart = distance;
-                        vTranslateStart.set(vTranslate.x, vTranslate.y);
-                        vCenterStart.set((event.getX(0) + event.getX(1))/2, (event.getY(0) + event.getY(1))/2);
-                        viewToSourceCoord(vCenterStart, sCenterStart);
-                    } else if (!rotationEnabled) {
+                    // Start pinch to zoom. Calculate distance between touch points and center point of the pinch.
+                    float distance = distance(event.getX(0), event.getX(1), event.getY(0), event.getY(1));
+                    scaleStart = scale;
+                    vDistStart = distance;
+                    vTranslateStart.set(vTranslate.x, vTranslate.y);
+                    vCenterStart.set((event.getX(0) + event.getX(1))/2, (event.getY(0) + event.getY(1))/2);
+                    viewToSourceCoord(vCenterStart, sCenterStart);
+
+                    if (!zoomEnabled && !rotationEnabled) {
                         // Abort all gestures on second touch
                         maxTouchCount = 0;
                     }
@@ -734,13 +734,15 @@ public class SubsamplingScaleImageView extends View {
                             consumed = true;
                         }
 
-                        if (zoomEnabled && (distance(vCenterStart.x, vCenterEndX, vCenterStart.y, vCenterEndY) > 5 || Math.abs(vDistEnd - vDistStart) > 5 || isPanning)) {
+                        if (distance(vCenterStart.x, vCenterEndX, vCenterStart.y, vCenterEndY) > 5 || Math.abs(vDistEnd - vDistStart) > 5 || isPanning) {
                             isZooming = true;
                             isPanning = true;
                             consumed = true;
 
                             double previousScale = scale;
-                            scale = Math.min(maxScale, (vDistEnd / vDistStart) * scaleStart);
+                            if (zoomEnabled) {
+                                scale = Math.min(maxScale, (vDistEnd / vDistStart) * scaleStart);
+                            }
 
                             if (scale <= minScale()) {
                                 // Minimum scale reached so don't pan. Adjust start settings so any expand will zoom in.
