@@ -188,7 +188,7 @@ public class SubsamplingScaleImageView extends View {
     // Gesture detection settings
     private boolean panEnabled = true;
     private boolean zoomEnabled = true;
-    private boolean rotationEnabled = true;
+    private boolean rotationEnabled = false;
     private boolean quickScaleEnabled = true;
 
     // Double tap zoom behaviour
@@ -333,6 +333,9 @@ public class SubsamplingScaleImageView extends View {
             }
             if (typedAttr.hasValue(styleable.SubsamplingScaleImageView_quickScaleEnabled)) {
                 setQuickScaleEnabled(typedAttr.getBoolean(styleable.SubsamplingScaleImageView_quickScaleEnabled, true));
+            }
+            if (typedAttr.hasValue(styleable.SubsamplingScaleImageView_rotationEnabled)) {
+                setRotationEnabled(typedAttr.getBoolean(styleable.SubsamplingScaleImageView_rotationEnabled, false));
             }
             if (typedAttr.hasValue(styleable.SubsamplingScaleImageView_tileBackgroundColor)) {
                 setTileBackgroundColor(typedAttr.getColor(styleable.SubsamplingScaleImageView_tileBackgroundColor, Color.argb(0, 0, 0, 0)));
