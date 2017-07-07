@@ -799,6 +799,7 @@ public class SubsamplingScaleImageView extends View {
                                 vTranslate.x += dxR;
                                 vTranslate.y += dyR;
 
+                                // TODO: Account for rotation
                                 if ((previousScale * sHeight() < getHeight() && scale * sHeight() >= getHeight()) || (previousScale * sWidth() < getWidth() && scale * sWidth() >= getWidth())) {
                                     fitToBounds(true);
                                     vCenterStart.set(vCenterEndX, vCenterEndY);
@@ -2774,6 +2775,7 @@ public class SubsamplingScaleImageView extends View {
     public final void setPanEnabled(boolean panEnabled) {
         this.panEnabled = panEnabled;
         if (!panEnabled && vTranslate != null) {
+            // TODO: Rotation?
             vTranslate.x = (getWidth()/2) - (scale * (sWidth()/2));
             vTranslate.y = (getHeight()/2) - (scale * (sHeight()/2));
             if (isReady()) {
@@ -3043,6 +3045,12 @@ public class SubsamplingScaleImageView extends View {
          * Starts the animation.
          */
         public void start() {
+            // Make sure the view has dimensions and something to draw before starting animations.
+            // Otherwise for example calls to sourceToViewCoord() may return null and cause errors.
+            if (!checkReady()) {
+                anim = null;
+                return;
+            }
             if (anim != null && anim.listener != null) {
                 try {
                     anim.listener.onInterruptedByNewAnim();
