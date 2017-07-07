@@ -216,6 +216,8 @@ public class SubsamplingScaleImageView extends View {
     private PointF sPendingCenter;
     private PointF sRequestedCenter;
 
+    private AnimationBuilder pendingAnimation = null;
+
     // Source image dimensions and orientation - dimensions relate to the unrotated image
     private int sWidth;
     private int sHeight;
@@ -1248,6 +1250,11 @@ public class SubsamplingScaleImageView extends View {
             onReady();
             if (onImageEventListener != null) {
                 onImageEventListener.onReady();
+            }
+            // Restart an animation that was waiting for the view to be ready
+            if (pendingAnimation != null) {
+                pendingAnimation.start();
+                pendingAnimation = null;
             }
         }
         return ready;
@@ -3048,6 +3055,7 @@ public class SubsamplingScaleImageView extends View {
             // Make sure the view has dimensions and something to draw before starting animations.
             // Otherwise for example calls to sourceToViewCoord() may return null and cause errors.
             if (!checkReady()) {
+                pendingAnimation = AnimationBuilder.this;
                 anim = null;
                 return;
             }
