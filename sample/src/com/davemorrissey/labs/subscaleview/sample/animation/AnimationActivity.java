@@ -88,8 +88,9 @@ public class AnimationActivity extends Activity implements OnClickListener {
                 float minScale = pinView.getMinScale();
                 float scale = (random.nextFloat() * (maxScale - minScale)) + minScale;
                 PointF center = new PointF(random.nextInt(pinView.getSWidth()), random.nextInt(pinView.getSHeight()));
+                float rotation = (random.nextFloat() * (float) Math.PI * 2);
                 pinView.setPin(center);
-                AnimationBuilder animationBuilder = pinView.animateScaleAndCenter(scale, center);
+                AnimationBuilder animationBuilder = pinView.animateSTR(scale, center, rotation);
                 if (position == 3) {
                     animationBuilder.withDuration(2000).withEasing(SubsamplingScaleImageView.EASE_OUT_QUAD).withInterruptible(false).start();
                 } else {

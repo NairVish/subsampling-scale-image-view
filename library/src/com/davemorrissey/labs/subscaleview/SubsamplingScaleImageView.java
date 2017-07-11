@@ -1021,6 +1021,11 @@ public class SubsamplingScaleImageView extends View {
             // Apply required animation to the focal point
             float vFocusNowX = ease(anim.easing, scaleElapsed, anim.vFocusStart.x, anim.vFocusEnd.x - anim.vFocusStart.x, anim.duration);
             float vFocusNowY = ease(anim.easing, scaleElapsed, anim.vFocusStart.y, anim.vFocusEnd.y - anim.vFocusStart.y, anim.duration);
+
+            if (rotationEnabled) {
+                setRotationInternal(ease(anim.easing, scaleElapsed, anim.rotationStart, anim.rotationEnd - anim.rotationStart, anim.duration));
+            }
+
             // Find out where the focal point is at this scale and adjust its position to follow the animation path
             PointF animVCenterEnd = sourceToViewCoord(anim.sCenterEnd);
             final float dX = animVCenterEnd.x - vFocusNowX;
@@ -2690,7 +2695,7 @@ public class SubsamplingScaleImageView extends View {
      */
     public final ImageViewState getState() {
         if (vTranslate != null && sWidth > 0 && sHeight > 0) {
-            return new ImageViewState(getScale(), getCenter(), getOrientation());
+            return new ImageViewState(getScale(), getCenter(), getRotationRad(), getOrientation());
         }
         return null;
     }
@@ -2920,6 +2925,13 @@ public class SubsamplingScaleImageView extends View {
         return new AnimationBuilder(scale, sCenter);
     }
 
+    public AnimationBuilder animateSTR(float scale, PointF sCenter, float rotation) {
+        if (!isReady()) {
+            return null;
+        }
+        return new AnimationBuilder(scale, sCenter, rotation);
+    }
+
     /**
      * Builder class used to set additional options for a scale animation. Create an instance using {@link #animateScale(float)},
      * then set your options and call {@link #start()}.
@@ -2928,6 +2940,7 @@ public class SubsamplingScaleImageView extends View {
 
         private final float targetScale;
         private final PointF targetSCenter;
+        private final float targetRotation;
         private final PointF vFocus;
         private long duration = 500;
         private int easing = EASE_IN_OUT_QUAD;
@@ -2939,25 +2952,43 @@ public class SubsamplingScaleImageView extends View {
         private AnimationBuilder(PointF sCenter) {
             this.targetScale = scale;
             this.targetSCenter = sCenter;
+            this.targetRotation = rotation;
             this.vFocus = null;
         }
 
         private AnimationBuilder(float scale) {
             this.targetScale = scale;
             this.targetSCenter = getCenter();
+            this.targetRotation = rotation;
             this.vFocus = null;
         }
 
         private AnimationBuilder(float scale, PointF sCenter) {
             this.targetScale = scale;
             this.targetSCenter = sCenter;
+            this.targetRotation = rotation;
             this.vFocus = null;
         }
 
         private AnimationBuilder(float scale, PointF sCenter, PointF vFocus) {
             this.targetScale = scale;
             this.targetSCenter = sCenter;
+            this.targetRotation = rotation;
             this.vFocus = vFocus;
+        }
+
+        private AnimationBuilder(PointF sCenter, float rotation) {
+            this.targetScale = scale;
+            this.targetSCenter = sCenter;
+            this.targetRotation = rotation;
+            this.vFocus = null;
+        }
+
+        private AnimationBuilder(float scale, PointF sCenter, float rotation) {
+            this.targetScale = scale;
+            this.targetSCenter = sCenter;
+            this.targetRotation = rotation;
+            this.vFocus = null;
         }
 
         /**
@@ -3040,7 +3071,6 @@ public class SubsamplingScaleImageView extends View {
                     Log.w(TAG, "Error thrown by animation listener", e);
                 }
             }
-            // TODO: Rotation
             int vxCenter = getPaddingLeft() + (getWidth() - getPaddingRight() - getPaddingLeft())/2;
             int vyCenter = getPaddingTop() + (getHeight() - getPaddingBottom() - getPaddingTop())/2;
             float targetScale = limitedScale(this.targetScale);
@@ -3048,6 +3078,8 @@ public class SubsamplingScaleImageView extends View {
             anim = new Anim();
             anim.scaleStart = scale;
             anim.scaleEnd = targetScale;
+            anim.rotationStart = rotation;
+            anim.rotationEnd = targetRotation;
             anim.time = System.currentTimeMillis();
             anim.sCenterEndRequested = targetSCenter;
             anim.sCenterStart = getCenter();
