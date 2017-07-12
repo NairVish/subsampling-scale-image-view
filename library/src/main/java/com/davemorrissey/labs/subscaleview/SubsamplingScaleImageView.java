@@ -286,7 +286,7 @@ public class SubsamplingScaleImageView extends View {
     private Paint tileBgPaint;
 
     // Volatile fields used to reduce object creation
-    private ScaleAndTranslate satTemp;
+    private ScaleTranslateRotate satTemp;
     private Matrix matrix;
     private RectF sRect;
     private float[] srcArray = new float[8];
@@ -1307,7 +1307,7 @@ public class SubsamplingScaleImageView extends View {
     private synchronized void initialiseBaseLayer(Point maxTileDimensions) {
         debug("initialiseBaseLayer maxTileDimensions=%dx%d", maxTileDimensions.x, maxTileDimensions.y);
 
-        satTemp = new ScaleAndTranslate(0f, new PointF(0, 0));
+        satTemp = new ScaleTranslateRotate(0f, new PointF(0, 0), 0);
         fitToBounds(true, satTemp);
 
         // Load double resolution - next level will be split into four tiles and at the center all four are required,
@@ -1439,7 +1439,6 @@ public class SubsamplingScaleImageView extends View {
             if (vTranslate == null) {
                 vTranslate = new PointF();
             }
-            // TODO: Rotation
             vTranslate.x = (getWidth()/2) - (scale * sPendingCenter.x);
             vTranslate.y = (getHeight()/2) - (scale * sPendingCenter.y);
             sPendingCenter = null;
@@ -1499,7 +1498,7 @@ public class SubsamplingScaleImageView extends View {
      * @param center Whether the image should be centered in the dimension it's too small to fill. While animating this can be false to avoid changes in direction as bounds are reached.
      * @param sat The scale we want and the translation we're aiming for. The values are adjusted to be valid.
      */
-    private void fitToBounds(boolean center, ScaleAndTranslate sat) {
+    private void fitToBounds(boolean center, ScaleTranslateRotate sat) {
         if (panLimit == PAN_LIMIT_OUTSIDE && isReady()) {
             center = false;
         }
@@ -1555,7 +1554,7 @@ public class SubsamplingScaleImageView extends View {
             vTranslate = new PointF(0, 0);
         }
         if (satTemp == null) {
-            satTemp = new ScaleAndTranslate(0, new PointF(0, 0));
+            satTemp = new ScaleTranslateRotate(0, new PointF(0, 0), 0);
         }
         satTemp.scale = scale;
         satTemp.vTranslate.set(vTranslate);
@@ -2004,15 +2003,6 @@ public class SubsamplingScaleImageView extends View {
 
     }
 
-    private static class ScaleAndTranslate {
-        private ScaleAndTranslate(float scale, PointF vTranslate) {
-            this.scale = scale;
-            this.vTranslate = vTranslate;
-        }
-        private float scale;
-        private PointF vTranslate;
-    }
-
     private static class ScaleTranslateRotate {
         private ScaleTranslateRotate(float scale, PointF vTranslate, float rotate) {
             this.scale = scale;
@@ -2305,7 +2295,7 @@ public class SubsamplingScaleImageView extends View {
         int vxCenter = getPaddingLeft() + (getWidth() - getPaddingRight() - getPaddingLeft())/2;
         int vyCenter = getPaddingTop() + (getHeight() - getPaddingBottom() - getPaddingTop())/2;
         if (satTemp == null) {
-            satTemp = new ScaleAndTranslate(0, new PointF(0, 0));
+            satTemp = new ScaleTranslateRotate(0, new PointF(0, 0), 0);
         }
         // TODO: Rotation
         satTemp.scale = scale;
@@ -3126,7 +3116,7 @@ public class SubsamplingScaleImageView extends View {
                 // Calculate where translation will be at the end of the anim
                 float vTranslateXEnd = vFocus.x - (targetScale * anim.sCenterStart.x);
                 float vTranslateYEnd = vFocus.y - (targetScale * anim.sCenterStart.y);
-                ScaleAndTranslate satEnd = new ScaleAndTranslate(targetScale, new PointF(vTranslateXEnd, vTranslateYEnd));
+                ScaleTranslateRotate satEnd = new ScaleTranslateRotate(targetScale, new PointF(vTranslateXEnd, vTranslateYEnd), targetRotation);
                 // Fit the end translation into bounds
                 fitToBounds(true, satEnd);
                 // Adjust the position of the focus point at end so image will be in bounds
