@@ -285,7 +285,7 @@ public class SubsamplingScaleImageView extends View {
     private Paint tileBgPaint;
 
     // Volatile fields used to reduce object creation
-    private ScaleTranslateRotate satTemp;
+    private ScaleTranslateRotate strTemp;
     private Matrix matrix;
     private RectF sRect;
     private float[] srcArray = new float[8];
@@ -491,7 +491,7 @@ public class SubsamplingScaleImageView extends View {
         quickScaleVLastPoint = null;
         quickScaleVStart = null;
         anim = null;
-        satTemp = null;
+        strTemp = null;
         matrix = null;
         sRect = null;
         if (newImage) {
@@ -1275,12 +1275,12 @@ public class SubsamplingScaleImageView extends View {
     private synchronized void initialiseBaseLayer(Point maxTileDimensions) {
         debug("initialiseBaseLayer maxTileDimensions=%dx%d", maxTileDimensions.x, maxTileDimensions.y);
 
-        satTemp = new ScaleTranslateRotate(0f, new PointF(0, 0), 0);
-        fitToBounds(true, satTemp);
+        strTemp = new ScaleTranslateRotate(0f, new PointF(0, 0), 0);
+        fitToBounds(true, strTemp);
 
         // Load double resolution - next level will be split into four tiles and at the center all four are required,
         // so don't bother with tiling until the next level 16 tiles are needed.
-        fullImageSampleSize = calculateInSampleSize(satTemp.scale);
+        fullImageSampleSize = calculateInSampleSize(strTemp.scale);
         if (fullImageSampleSize > 1) {
             fullImageSampleSize /= 2;
         }
@@ -1521,14 +1521,16 @@ public class SubsamplingScaleImageView extends View {
             init = true;
             vTranslate = new PointF(0, 0);
         }
-        if (satTemp == null) {
-            satTemp = new ScaleTranslateRotate(0, new PointF(0, 0), 0);
+        if (strTemp == null) {
+            strTemp = new ScaleTranslateRotate(0, new PointF(0, 0), 0);
         }
-        satTemp.scale = scale;
-        satTemp.vTranslate.set(vTranslate);
-        fitToBounds(center, satTemp);
-        scale = satTemp.scale;
-        vTranslate.set(satTemp.vTranslate);
+        strTemp.scale = scale;
+        strTemp.vTranslate.set(vTranslate);
+        strTemp.rotate = rotation;
+        fitToBounds(center, strTemp);
+        scale = strTemp.scale;
+        vTranslate.set(strTemp.vTranslate);
+        setRotationInternal(strTemp.rotate);
         if (init) {
             vTranslate.set(vTranslateForSCenter(sWidth()/2, sHeight()/2, scale));
         }
@@ -2262,14 +2264,14 @@ public class SubsamplingScaleImageView extends View {
     private PointF vTranslateForSCenter(float sCenterX, float sCenterY, float scale) {
         int vxCenter = getPaddingLeft() + (getWidth() - getPaddingRight() - getPaddingLeft())/2;
         int vyCenter = getPaddingTop() + (getHeight() - getPaddingBottom() - getPaddingTop())/2;
-        if (satTemp == null) {
-            satTemp = new ScaleTranslateRotate(0, new PointF(0, 0), 0);
+        if (strTemp == null) {
+            strTemp = new ScaleTranslateRotate(0, new PointF(0, 0), 0);
         }
         // TODO: Rotation
-        satTemp.scale = scale;
-        satTemp.vTranslate.set(vxCenter - (sCenterX * scale), vyCenter - (sCenterY * scale));
-        fitToBounds(true, satTemp);
-        return satTemp.vTranslate;
+        strTemp.scale = scale;
+        strTemp.vTranslate.set(vxCenter - (sCenterX * scale), vyCenter - (sCenterY * scale));
+        fitToBounds(true, strTemp);
+        return strTemp.vTranslate;
     }
 
     /**
