@@ -130,10 +130,13 @@ public class ConfigurationActivity extends Activity implements OnClickListener {
         }
         if (position == 7) {
             imageView.setPanLimit(SubsamplingScaleImageView.PAN_LIMIT_CENTER);
+            imageView.setRotationEnabled(true);
         } else if (position == 8) {
             imageView.setPanLimit(SubsamplingScaleImageView.PAN_LIMIT_OUTSIDE);
+            imageView.setRotationEnabled(true);
         } else {
             imageView.setPanLimit(SubsamplingScaleImageView.PAN_LIMIT_INSIDE);
+            imageView.setRotationEnabled(false);
         }
         if (position == 9) {
             imageView.setDebug(true);

@@ -206,7 +206,7 @@ public class SubsamplingScaleImageView extends View {
     private double cos = Math.cos(0);
     private double sin = Math.sin(0);
 
-    // Screen coordinate of top-left corner of source image
+    // Screen coordinate of center of source image
     private PointF vTranslate;
     private PointF vTranslateStart;
     private PointF vTranslateBefore;
@@ -547,7 +547,10 @@ public class SubsamplingScaleImageView extends View {
                     PointF vTranslateEnd = new PointF(vTranslate.x + (vX * 0.25f), vTranslate.y + (vY * 0.25f));
                     float sCenterXEnd = ((getWidth()/2) - vTranslateEnd.x)/scale;
                     float sCenterYEnd = ((getHeight()/2) - vTranslateEnd.y)/scale;
-                    new AnimationBuilder(new PointF(sCenterXEnd, sCenterYEnd)).withEasing(EASE_OUT_QUAD).withPanLimited(false).withOrigin(ORIGIN_FLING).start();
+                    new AnimationBuilder(new PointF(sCenterXEnd, sCenterYEnd))
+                            .withEasing(EASE_OUT_QUAD)
+                            .withPanLimited(false)
+                            .withOrigin(ORIGIN_FLING).start();
                     return true;
                 }
                 return super.onFling(e1, e2, velocityX, velocityY);
@@ -699,7 +702,7 @@ public class SubsamplingScaleImageView extends View {
                     float distance = distance(event.getX(0), event.getX(1), event.getY(0), event.getY(1));
                     scaleStart = scale;
                     vDistStart = distance;
-                    vTranslateStart.set(vTranslate.x, vTranslate.y);
+                    vTranslateStart.set(vTranslate);
                     vCenterStart.set((event.getX(0) + event.getX(1))/2, (event.getY(0) + event.getY(1))/2);
                     viewToSourceCoord(vCenterStart, sCenterStart);
 
@@ -716,7 +719,7 @@ public class SubsamplingScaleImageView extends View {
                     handler.removeMessages(MESSAGE_LONG_CLICK);
                 } else if (!isQuickScaling) {
                     // Start one-finger pan
-                    vTranslateStart.set(vTranslate.x, vTranslate.y);
+                    vTranslateStart.set(vTranslate);
                     vCenterStart.set(event.getX(), event.getY());
 
                     // Start long click timer
@@ -779,12 +782,12 @@ public class SubsamplingScaleImageView extends View {
                                 }
                             } else if (sRequestedCenter != null) {
                                 // With a center specified from code, zoom around that point.
-                                vTranslate.x = (getWidth()/2) - (scale * sRequestedCenter.x);
-                                vTranslate.y = (getHeight()/2) - (scale * sRequestedCenter.y);
+                                vTranslate.x = (getWidth()/2) - (scale * (sRequestedCenter.x - sWidth()/2));
+                                vTranslate.y = (getHeight()/2) - (scale * (sRequestedCenter.y - sHeight()/2));
                             } else {
                                 // With no requested center, scale around the image center.
-                                vTranslate.x = (getWidth()/2) - (scale * (sWidth()/2));
-                                vTranslate.y = (getHeight()/2) - (scale * (sHeight()/2));
+                                vTranslate.x = getWidth()/2;
+                                vTranslate.y = getHeight()/2;
                             }
 
                             fitToBounds(true);
@@ -815,12 +818,12 @@ public class SubsamplingScaleImageView extends View {
                             scale = Math.max(minScale(), Math.min(maxScale, scale * multiplier));
 
                             if (panEnabled) {
-                                float vLeftStart = vCenterStart.x - vTranslateStart.x;
-                                float vTopStart = vCenterStart.y - vTranslateStart.y;
-                                float vLeftNow = vLeftStart * (scale/scaleStart);
-                                float vTopNow = vTopStart * (scale/scaleStart);
-                                vTranslate.x = vCenterStart.x - vLeftNow;
-                                vTranslate.y = vCenterStart.y - vTopNow;
+                                float vXStart = vCenterStart.x - vTranslateStart.x;
+                                float vYStart = vCenterStart.y - vTranslateStart.y;
+                                float vXNow = vXStart * (scale/scaleStart);
+                                float vYNow = vYStart * (scale/scaleStart);
+                                vTranslate.x = vCenterStart.x - vXNow;
+                                vTranslate.y = vCenterStart.y - vYNow;
                                 if ((previousScale * sHeight() < getHeight() && scale * sHeight() >= getHeight()) || (previousScale * sWidth() < getWidth() && scale * sWidth() >= getWidth())) {
                                     fitToBounds(true);
                                     vCenterStart.set(sourceToViewCoord(quickScaleSCenter));
@@ -830,12 +833,12 @@ public class SubsamplingScaleImageView extends View {
                                 }
                             } else if (sRequestedCenter != null) {
                                 // With a center specified from code, zoom around that point.
-                                vTranslate.x = (getWidth()/2) - (scale * sRequestedCenter.x);
-                                vTranslate.y = (getHeight()/2) - (scale * sRequestedCenter.y);
+                                vTranslate.x = (getWidth()/2) - (scale * (sRequestedCenter.x - sWidth()/2));
+                                vTranslate.y = (getHeight()/2) - (scale * (sRequestedCenter.y - sHeight()/2));
                             } else {
                                 // With no requested center, scale around the image center.
-                                vTranslate.x = (getWidth()/2) - (scale * (sWidth()/2));
-                                vTranslate.y = (getHeight()/2) - (scale * (sHeight()/2));
+                                vTranslate.x = getWidth()/2;
+                                vTranslate.y = getHeight()/2;
                             }
                         }
 
@@ -868,6 +871,7 @@ public class SubsamplingScaleImageView extends View {
                             float lastX = vTranslate.x;
                             float lastY = vTranslate.y;
                             fitToBounds(true);
+                            // TODO: Verify
                             boolean atXEdge = lastX != vTranslate.x;
                             boolean atYEdge = lastY != vTranslate.y;
                             boolean edgeXSwipe = atXEdge && dx > dy && !isPanning;
@@ -911,7 +915,7 @@ public class SubsamplingScaleImageView extends View {
                     if (isZooming && touchCount == 2) {
                         // Convert from zoom to pan with remaining touch
                         isPanning = true;
-                        vTranslateStart.set(vTranslate.x, vTranslate.y);
+                        vTranslateStart.set(vTranslate);
                         if (event.getActionIndex() == 1) {
                             vCenterStart.set(event.getX(0), event.getY(0));
                         } else {
@@ -1116,15 +1120,17 @@ public class SubsamplingScaleImageView extends View {
             matrix.reset();
             matrix.postScale(xScale, yScale);
             matrix.postRotate(getRequiredRotation());
-            matrix.postTranslate(vTranslate.x, vTranslate.y);
+            matrix.postTranslate(vTranslate.x - scale * sWidth()/2, vTranslate.y - scale * sHeight()/2);
 
-            if (getRequiredRotation() == ORIENTATION_180) {
-                matrix.postTranslate(scale * sWidth, scale * sHeight);
-            } else if (getRequiredRotation() == ORIENTATION_90) {
-                matrix.postTranslate(scale * sHeight, 0);
-            } else if (getRequiredRotation() == ORIENTATION_270) {
-                matrix.postTranslate(0, scale * sWidth);
-            }
+            /*
+                if (getRequiredRotation() == ORIENTATION_180) {
+                    matrix.postTranslate(scale * sWidth, scale * sHeight);
+                } else if (getRequiredRotation() == ORIENTATION_90) {
+                    matrix.postTranslate(scale * sHeight, 0);
+                } else if (getRequiredRotation() == ORIENTATION_270) {
+                    matrix.postTranslate(0, scale * sWidth);
+                }
+            */
 
             matrix.postRotate((float) Math.toDegrees(rotation), getWidth() / 2, getHeight() / 2);
 
@@ -1407,8 +1413,8 @@ public class SubsamplingScaleImageView extends View {
             if (vTranslate == null) {
                 vTranslate = new PointF();
             }
-            vTranslate.x = (getWidth()/2) - (scale * sPendingCenter.x);
-            vTranslate.y = (getHeight()/2) - (scale * sPendingCenter.y);
+            vTranslate.x = (getWidth()/2) - (scale * (sPendingCenter.x - sWidth()/2));
+            vTranslate.y = (getHeight()/2) - (scale * (sPendingCenter.y - sHeight()/2));
             sPendingCenter = null;
             pendingScale = null;
             fitToBounds(true);
@@ -1473,37 +1479,40 @@ public class SubsamplingScaleImageView extends View {
         // TODO: Rotation
         PointF vTranslate = sat.vTranslate;
         float scale = limitedScale(sat.scale);
-        float scaleWidth = scale * sWidth();
-        float scaleHeight = scale * sHeight();
+        float scaleHalfWidth = scale * sWidth() / 2;
+        float scaleHalfHeight = scale * sHeight() / 2;
 
+        // Check if translated below the minimum allowed translation
         if (panLimit == PAN_LIMIT_CENTER && isReady()) {
-            vTranslate.x = Math.max(vTranslate.x, getWidth()/2 - scaleWidth);
-            vTranslate.y = Math.max(vTranslate.y, getHeight()/2 - scaleHeight);
+            vTranslate.x = Math.max(vTranslate.x, getWidth()/2 - scaleHalfWidth);
+            vTranslate.y = Math.max(vTranslate.y, getHeight()/2 - scaleHalfHeight);
         } else if (center) {
-            vTranslate.x = Math.max(vTranslate.x, getWidth() - scaleWidth);
-            vTranslate.y = Math.max(vTranslate.y, getHeight() - scaleHeight);
+            vTranslate.x = Math.max(vTranslate.x, getWidth() - scaleHalfWidth);
+            vTranslate.y = Math.max(vTranslate.y, getHeight() - scaleHalfHeight);
         } else {
-            vTranslate.x = Math.max(vTranslate.x, -scaleWidth);
-            vTranslate.y = Math.max(vTranslate.y, -scaleHeight);
+            vTranslate.x = Math.max(vTranslate.x, -scaleHalfWidth);
+            vTranslate.y = Math.max(vTranslate.y, -scaleHalfHeight);
         }
 
         // Asymmetric padding adjustments
         float xPaddingRatio = getPaddingLeft() > 0 || getPaddingRight() > 0 ? getPaddingLeft()/(float)(getPaddingLeft() + getPaddingRight()) : 0.5f;
         float yPaddingRatio = getPaddingTop() > 0 || getPaddingBottom() > 0 ? getPaddingTop()/(float)(getPaddingTop() + getPaddingBottom()) : 0.5f;
 
+        // Calculate the maximum permissible translation limit
         float maxTx;
         float maxTy;
         if (panLimit == PAN_LIMIT_CENTER && isReady()) {
-            maxTx = Math.max(0, getWidth()/2);
-            maxTy = Math.max(0, getHeight()/2);
-        } else if (center) {
-            maxTx = Math.max(0, (getWidth() - scaleWidth) * xPaddingRatio);
-            maxTy = Math.max(0, (getHeight() - scaleHeight) * yPaddingRatio);
-        } else {
-            maxTx = Math.max(0, getWidth());
-            maxTy = Math.max(0, getHeight());
+            maxTx = Math.max(0, getWidth()/2 + scaleHalfWidth);
+            maxTy = Math.max(0, getHeight()/2 + scaleHalfHeight);
+        } else if (center) { // PAN_LIMIT_INSIDE typically
+            maxTx = Math.max(0, (getWidth() - scaleHalfWidth) * xPaddingRatio);
+            maxTy = Math.max(0, (getHeight() - scaleHalfHeight) * yPaddingRatio);
+        } else { // PAN_LIMIT_OUTSIDE or special case
+            maxTx = getWidth() + scaleHalfWidth;
+            maxTy = getHeight() + scaleHalfHeight;
         }
 
+        // Check if translated beyond the maximum limit
         vTranslate.x = Math.min(vTranslate.x, maxTx);
         vTranslate.y = Math.min(vTranslate.y, maxTy);
 
@@ -2117,7 +2126,7 @@ public class SubsamplingScaleImageView extends View {
      */
     private float viewToSourceX(float vx) {
         if (vTranslate == null) { return Float.NaN; }
-        return (vx - vTranslate.x)/scale;
+        return (vx - vTranslate.x)/scale + sWidth()/2;
     }
 
     /**
@@ -2126,7 +2135,7 @@ public class SubsamplingScaleImageView extends View {
      */
     private float viewToSourceY(float vy) {
         if (vTranslate == null) { return Float.NaN; }
-        return (vy - vTranslate.y)/scale;
+        return (vy - vTranslate.y)/scale + sHeight()/2;
     }
 
     /**
@@ -2182,7 +2191,7 @@ public class SubsamplingScaleImageView extends View {
      */
     private float sourceToViewX(float sx) {
         if (vTranslate == null) { return Float.NaN; }
-        return (sx * scale) + vTranslate.x;
+        return ((sx - sWidth()/2) * scale) + vTranslate.x;
     }
 
     /**
@@ -2191,7 +2200,7 @@ public class SubsamplingScaleImageView extends View {
      */
     private float sourceToViewY(float sy) {
         if (vTranslate == null) { return Float.NaN; }
-        return (sy * scale) + vTranslate.y;
+        return ((sy - sHeight()/2) * scale) + vTranslate.y;
     }
 
     /**
@@ -2230,8 +2239,8 @@ public class SubsamplingScaleImageView extends View {
             vTarget.set(xPreRotate, yPreRotate);
         } else {
             // Calculate offset by rotation
-            final float vCenterX = getWidth() / 2;
-            final float vCenterY = getHeight() / 2;
+            final float vCenterX = vTranslate.x;
+            final float vCenterY = vTranslate.y;
             xPreRotate -= vCenterX;
             yPreRotate -= vCenterY;
             vTarget.x = (float) (xPreRotate * cos - yPreRotate * sin) + vCenterX;
@@ -2269,7 +2278,7 @@ public class SubsamplingScaleImageView extends View {
         }
         // TODO: Rotation
         strTemp.scale = scale;
-        strTemp.vTranslate.set(vxCenter - (sCenterX * scale), vyCenter - (sCenterY * scale));
+        strTemp.vTranslate.set(vxCenter - ((sCenterX - sWidth()/2) * scale), vyCenter - ((sCenterY - sHeight()/2)* scale));
         fitToBounds(true, strTemp);
         return strTemp.vTranslate;
     }
@@ -2588,6 +2597,24 @@ public class SubsamplingScaleImageView extends View {
     }
 
     /**
+     * Applies rotation around a focus point
+     * @param rotation An incremental rotation, in clockwise degrees
+     * @param vFocus   Focus point in view coordinates
+     */
+    public final void rotateAroundView(float rotation, PointF vFocus) {
+
+    }
+
+    /**
+     * Applies rotation around a focus point on the source image
+     * @param rotation An incremental, in clockwise degrees
+     * @param sFocus   Focus point in source coordinates
+     */
+    public final void rotateAroundSource(float rotation, PointF sFocus) {
+        rotateAroundView(rotation, sourceToViewCoord(sFocus));
+    }
+
+    /**
      * Sets rotation without invalidation
      */
     private void setRotationInternal(float rot) {
@@ -2752,8 +2779,8 @@ public class SubsamplingScaleImageView extends View {
         this.panEnabled = panEnabled;
         if (!panEnabled && vTranslate != null) {
             // TODO: Rotation?
-            vTranslate.x = (getWidth()/2) - (scale * (sWidth()/2));
-            vTranslate.y = (getHeight()/2) - (scale * (sHeight()/2));
+            vTranslate.x = (getWidth()/2);
+            vTranslate.y = (getHeight()/2);
             if (isReady()) {
                 refreshRequiredTiles(true);
                 invalidate();
@@ -3090,6 +3117,7 @@ public class SubsamplingScaleImageView extends View {
 
             if (vFocus != null) {
                 // Calculate where translation will be at the end of the anim
+                // TODO
                 float vTranslateXEnd = vFocus.x - (targetScale * anim.sCenterStart.x);
                 float vTranslateYEnd = vFocus.y - (targetScale * anim.sCenterStart.y);
                 ScaleTranslateRotate satEnd = new ScaleTranslateRotate(targetScale, new PointF(vTranslateXEnd, vTranslateYEnd), targetRotation);
