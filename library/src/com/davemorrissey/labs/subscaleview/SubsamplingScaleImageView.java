@@ -1505,11 +1505,11 @@ public class SubsamplingScaleImageView extends View {
             maxTx = Math.max(0, getWidth()/2 + scaleHalfWidth);
             maxTy = Math.max(0, getHeight()/2 + scaleHalfHeight);
         } else if (center) { // PAN_LIMIT_INSIDE typically
-            maxTx = Math.max(0, (getWidth() - scaleHalfWidth) * xPaddingRatio);
-            maxTy = Math.max(0, (getHeight() - scaleHalfHeight) * yPaddingRatio);
+            maxTx = Math.max(scaleHalfWidth, (getWidth() - scaleHalfWidth) * xPaddingRatio);
+            maxTy = Math.max(scaleHalfHeight, (getHeight() - scaleHalfHeight) * yPaddingRatio);
         } else { // PAN_LIMIT_OUTSIDE or special case
-            maxTx = getWidth() + scaleHalfWidth;
-            maxTy = getHeight() + scaleHalfHeight;
+            maxTx = Math.max(0, getWidth() + scaleHalfWidth);
+            maxTy = Math.max(0, getHeight() + scaleHalfHeight);
         }
 
         // Check if translated beyond the maximum limit
