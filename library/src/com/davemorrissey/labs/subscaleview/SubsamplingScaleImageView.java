@@ -678,9 +678,10 @@ public class SubsamplingScaleImageView extends View {
         // Store current values so we can send an event if they change
         float scaleBefore = scale;
         vTranslateBefore.set(vTranslate);
+        float rotationBefore = rotation;
 
         boolean handled = onTouchEventInternal(event);
-        sendStateChanged(scaleBefore, vTranslateBefore, ORIGIN_TOUCH);
+        sendStateChanged(scaleBefore, vTranslateBefore, rotationBefore, ORIGIN_TOUCH);
         return handled || super.onTouchEvent(event);
     }
 
@@ -1010,6 +1011,7 @@ public class SubsamplingScaleImageView extends View {
         if (anim != null) {
             // Store current values so we can send an event if they change
             float scaleBefore = scale;
+            float rotationBefore = rotation;
             if (vTranslateBefore == null) { vTranslateBefore = new PointF(0, 0); }
             vTranslateBefore.set(vTranslate);
 
@@ -1035,7 +1037,7 @@ public class SubsamplingScaleImageView extends View {
 
             // For translate anims, showing the image non-centered is never allowed, for scaling anims it is during the animation.
             fitToBounds(finished || (anim.scaleStart == anim.scaleEnd));
-            sendStateChanged(scaleBefore, vTranslateBefore, anim.origin);
+            sendStateChanged(scaleBefore, vTranslateBefore, rotationBefore, anim.origin);
             refreshRequiredTiles(finished);
             if (finished) {
                 if (anim.listener != null) {
@@ -2865,13 +2867,16 @@ public class SubsamplingScaleImageView extends View {
         this.onStateChangedListener = onStateChangedListener;
     }
 
-    private void sendStateChanged(float oldScale, PointF oldVTranslate, int origin) {
+    private void sendStateChanged(float oldScale, PointF oldVTranslate, float oldRotation, int origin) {
         if (onStateChangedListener != null) {
             if (scale != oldScale) {
                 onStateChangedListener.onScaleChanged(scale, origin);
             }
             if (!vTranslate.equals(oldVTranslate)) {
                 onStateChangedListener.onCenterChanged(getCenter(), origin);
+            }
+            if (rotation != oldRotation) {
+                onStateChangedListener.onRotationChanged(rotation, origin);
             }
         }
     }
@@ -3235,6 +3240,12 @@ public class SubsamplingScaleImageView extends View {
          */
         void onCenterChanged(PointF newCenter, int origin);
 
+        /**
+         * The rotation has changed.
+         * @param newRotation The new rotation.
+         * @param origin Where the event originated from - one of {@link #ORIGIN_ANIM}, {@link #ORIGIN_TOUCH}.
+         */
+        void onRotationChanged(float newRotation, int origin);
     }
 
     /**
@@ -3244,6 +3255,7 @@ public class SubsamplingScaleImageView extends View {
 
         @Override public void onCenterChanged(PointF newCenter, int origin) { }
         @Override public void onScaleChanged(float newScale, int origin) { }
+        @Override public void onRotationChanged(float newRotation, int origin) { }
 
     }
 
