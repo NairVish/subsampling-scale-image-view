@@ -1,28 +1,19 @@
 apply plugin: 'com.jfrog.bintray'
+apply plugin: 'maven-publish'
 
-version = '9009'
+// Version for the bintray upload
+version = '9010'
 
-bintray {
-    user bintrayUsername
-    key bintrayKey
-
-    pkg {
-        repo = 'mvn-internal'
-        name = 'Subsampling scale image view'
-        userOrg = 'indooratlas-ltd'
-        vcsUrl = 'https://github.com/IndoorAtlas/subsampling-scale-image-view'
-        desc = 'Android library for displaying large images'
-        version {
-            name version
-            released = new Date()
-            attributes = ['gradle.plugin': 'com.davemorrissey.labs.subscaleview:subsampling-scale-image-view']
-
-        }
-    }
+task androidJavadocsJar(type: Jar) {
+    from "$buildDir/libs/$project.name-$project.version-javadoc.jar"
 }
 
+task androidSourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+}
 
 artifacts {
+    archives androidSourcesJar, androidJavadocsJar
 }
 
 publishing {
@@ -31,21 +22,51 @@ publishing {
             groupId project.group
             artifactId project.archivesBaseName
             version project.version
+            artifact androidJavadocsJar {
+                classifier 'javadoc'
+            }
+            artifact androidSourcesJar {
+                classifier 'source'
+            }
+
+            artifact(bundleDebug)
 
             pom.withXml {
                 def Node root = asNode()
 
                 root.appendNode('name', project.name)
-                root.appendNode('description', project.project_description)
+                // root.appendNode('description', project.project_description)
 
                 def dependenciesNode = node.dependencies.size() > 0 ? node.dependencies[0] : node.appendNode('dependencies')
                 project.configurations.compile.allDependencies.each {
-                    def dependencyNode = dependenciesNode.appendNode('dependency')
-                    dependencyNode.appendNode('groupId', it.group)
-                    dependencyNode.appendNode('artifactId', it.name)
-                    dependencyNode.appendNode('version', it.version)
+                    if (it.version != null && it.version != "unspecified") {
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                    }
                 }
             }
+        }
+    }
+}
+
+bintray {
+    user bintrayUsername
+    key bintrayKey
+    publications = ['dist']
+    publish = true
+    pkg {
+        repo = 'mvn-internal'
+        name = 'subsamplingscaleimageview'
+        userOrg = 'indooratlas-ltd'
+        vcsUrl = 'https://github.com/IndoorAtlas/subsampling-scale-image-view'
+        desc = 'Android library for displaying large images'
+        version {
+            name = '9010'
+            released = new Date()
+            attributes = ['gradle.plugin': 'com.davemorrissey.labs.subscaleview:subsampling-scale-image-view']
+
         }
     }
 }
