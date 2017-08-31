@@ -472,6 +472,7 @@ public class SubsamplingScaleImageView extends View {
         debug("reset newImage=" + newImage);
         scale = 0f;
         scaleStart = 0f;
+        rotation = 0;
         vTranslate = null;
         vTranslateStart = null;
         vTranslateBefore = null;
