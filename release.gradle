@@ -18,33 +18,6 @@ def getMavenRepositoryPassword() {
 }
 
 afterEvaluate { project ->
-    task androidJavadoc(type: Javadoc) {
-        source = android.sourceSets.main.java.srcDirs
-        classpath += files(android.bootClasspath)
-    }
-
-    task androidJavadocJar(type: Jar) {
-        classifier = 'javadoc'
-        from androidJavadoc.destinationDir
-    }
-
-    task androidSourcesJar(type: Jar) {
-        classifier = 'sources'
-        from android.sourceSets.main.java.srcDirs
-    }
-
-    android.libraryVariants.all { variant ->
-        def name = variant.name.capitalize()
-        task "jar${name}"(type: Jar, dependsOn: variant.javaCompile) {
-            from variant.javaCompile.destinationDir
-        }
-    }
-
-    artifacts {
-        archives androidJavadocJar
-        archives androidSourcesJar
-        archives jarRelease
-    }
 
     signing {
         required { isReleaseBuild() && gradle.taskGraph.hasTask("uploadArchives") }
@@ -54,14 +27,10 @@ afterEvaluate { project ->
     uploadArchives {
         configuration = configurations.archives
         repositories.mavenDeployer {
-            beforeDeployment {
-                MavenDeployment deployment -> signing.signPom(deployment)
-            }
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
-            repository(url: getMavenRepositoryUrl()) {
-                authentication(
-                        userName: getMavenRepositoryUsername(),
-                        password: getMavenRepositoryPassword())
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: getMavenRepositoryUsername(), password: getMavenRepositoryPassword())
             }
 
             pom.project {
@@ -94,12 +63,4 @@ afterEvaluate { project ->
         }
     }
 
-    task installArchives(type: Upload) {
-        configuration = configurations.archives
-        repositories {
-            mavenDeployer {
-                repository url: "file://${System.properties['user.home']}/.m2/repository"
-            }
-        }
-    }
 }
