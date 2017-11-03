@@ -599,26 +599,6 @@ public class SubsamplingScaleImageView extends View {
                 return true;
             }
         });
-
-        this.rotDetector = new RotationGestureDetector(new RotationGestureDetector.OnRotationListener() {
-            @Override
-            public boolean onRotationBegin() {
-                return true;
-            }
-
-            @Override
-            public void onRotationEnd() {
-
-            }
-
-            @Override
-            public boolean onRotation(float angle) {
-                setRotationRad(rotation + angle);
-                invalidate();
-                return true;
-            }
-        });
-
     }
 
     /**
@@ -2896,15 +2876,17 @@ public class SubsamplingScaleImageView extends View {
         this.onStateChangedListener = onStateChangedListener;
     }
 
-    private void sendStateChanged(float oldScale, PointF oldVTranslate, int origin) {
-        if (onStateChangedListener != null && scale != oldScale) {
-            onStateChangedListener.onScaleChanged(scale, origin);
-        }
-        if (onStateChangedListener != null && !vTranslate.equals(oldVTranslate)) {
-            onStateChangedListener.onCenterChanged(getCenter(), origin);
-        }
-        if (onStateChangedListener != null && rotation != oldRotation) {
-            onStateChangedListener.onRotationChanged(rotation, origin);
+    private void sendStateChanged(float oldScale, PointF oldVTranslate, float oldRotation, int origin) {
+        if (onStateChangedListener != null) {
+            if (scale != oldScale) {
+                onStateChangedListener.onScaleChanged(scale, origin);
+            }
+            if (!vTranslate.equals(oldVTranslate)) {
+                onStateChangedListener.onCenterChanged(getCenter(), origin);
+            }
+            if (rotation != oldRotation) {
+                onStateChangedListener.onRotationChanged(rotation, origin);
+            }
         }
     }
 
