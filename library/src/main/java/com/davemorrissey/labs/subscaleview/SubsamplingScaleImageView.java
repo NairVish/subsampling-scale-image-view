@@ -1038,14 +1038,7 @@ public class SubsamplingScaleImageView extends View {
             float vFocusNowY = ease(anim.easing, scaleElapsed, anim.vFocusStart.y, anim.vFocusEnd.y - anim.vFocusStart.y, anim.duration);
 
             if (rotationEnabled) {
-                float change = anim.rotationEnd - anim.rotationStart;
-                if (change > Math.PI) {
-                    change = (float) (change - 2*Math.PI);
-                } else if (change < -Math.PI) {
-                    change = (float) (2*Math.PI + change);
-                }
-
-                setRotationInternal(ease(anim.easing, scaleElapsed, anim.rotationStart, change, anim.duration));
+                setRotationInternal(ease(anim.easing, scaleElapsed, anim.rotationStart, anim.rotationEnd - anim.rotationStart, anim.duration));
             }
 
             // Find out where the focal point is at this scale and adjust its position to follow the animation path
